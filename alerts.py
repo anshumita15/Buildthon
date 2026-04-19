@@ -1,44 +1,62 @@
-from twilio.rest import Client
+import requests
 import RPi.GPIO as GPIO
 import time
-import os
-from dotenv import load_dotenv
-load_dotenv()
-
-ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
-TO_NUMBERS = os.getenv("TWILIO_TO_NUMBERS", "").split(",") 
-
+ 
+# ── ntfy config ───────────────────────────────────────────────────────────────
+# Change this to any unique topic name you make up — caretaker subscribes to same name in ntfy app
+NTFY_TOPIC = "SeizureDetectorTeam600"
+NTFY_URL   = f"https://ntfy.sh/{NTFY_TOPIC}"
+ 
+# ── GPIO pin config ───────────────────────────────────────────────────────────
 BUZZER = 17
-BTN = 27
+BTN    = 27
 GREEN, YELLOW, RED = 22, 23, 24
-
+ 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup([BUZZER, GREEN, YELLOW, RED], GPIO.OUT)
 GPIO.setup(BTN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-client = Client(ACCOUNT_SID, AUTH_TOKEN)
-
-def send_sms(msg):
-    for num in TO_NUMBERS:
-        client.messages.create(body=msg, from_=FROM_NUMBER, to=num)
-
+ 
+# ── helpers ───────────────────────────────────────────────────────────────────
+def send_alert(message: str, priority: str = "urgent"):
+    """Send a push notification via ntfy.sh — free, no account needed."""
+    try:
+        requests.post(
+            NTFY_URL,
+            data=message,
+            headers={
+                "Title":    "Seizure detector",
+                "Priority": priority,
+                "Tags":     "rotating_light",
+            },
+            timeout=5,
+        )
+    except requests.exceptions.RequestException:
+        # if internet is down, don't crash — buzzer still fires
+        print("⚠️  ntfy notification failed (no internet?), buzzer still active")
+ 
+ 
+# ── main alert function (called by detector.py) ───────────────────────────────
 def trigger_alert():
-    GPIO.output(RED, True)
+    # fire buzzer + red LED immediately
+    GPIO.output(RED,    True)
     GPIO.output(BUZZER, True)
-    send_sms(f"🚨 Seizure detected at {time.strftime('%H:%M:%S')}. Check immediately.")
-    
-    # Wait up to 60s for button press
+ 
+    # send push notification to caretaker's phone
+    send_alert("🚨 Seizure detected. Check immediately.")
+ 
+    # wait up to 60 seconds for caretaker to press the button
     start = time.time()
     while time.time() - start < 60:
         if GPIO.input(BTN) == GPIO.LOW:
-            GPIO.output(RED, False)
+            # button pressed — silence everything
+            GPIO.output(RED,    False)
             GPIO.output(BUZZER, False)
+            GPIO.output(GREEN,  True)   # green = acknowledged
+            send_alert("✅ Alert acknowledged.", priority="low")
             return
         time.sleep(0.1)
-    
-    # No ack — escalate
-    send_sms("⚠️ No acknowledgment received. Escalating.")
-    GPIO.output(BUZZER, False)  # stop buzzer eventually
-# end of alerts.py
+ 
+    # no acknowledgment after 60s — send escalation notification
+    send_alert("⚠️ No acknowledgment after 60 seconds. Check immediately.", priority="urgent")
+    GPIO.output(BUZZER, False)
+ 
