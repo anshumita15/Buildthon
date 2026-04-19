@@ -2,7 +2,6 @@ mpu6050-raspberrypi
 numpy
 scipy
 flask
-twilio
 RPi.GPIO
 smbus2
-python-dotenv
+requests
