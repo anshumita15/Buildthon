@@ -12,8 +12,8 @@ GPIO.setup(BTN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 print("Testing GREEN LED...")
 GPIO.output(GREEN, True); time.sleep(1); GPIO.output(GREEN, False)
 
-print("Skipping YELLOW LED...")
-#GPIO.output(YELLOW, True); time.sleep(1); GPIO.output(YELLOW, False)
+print("Testing YELLOW LED...")
+GPIO.output(YELLOW, True); time.sleep(1); GPIO.output(YELLOW, False)
 
 print("Testing RED LED...")
 GPIO.output(RED, True); time.sleep(1); GPIO.output(RED, False)
