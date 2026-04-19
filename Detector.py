@@ -12,7 +12,7 @@ sensor = mpu6050(0x68)
 FS = 50
 WINDOW_SEC = 4
 WINDOW_SIZE = FS * WINDOW_SEC
-BAND = (3, 6)               # Hz — typical seizure rhythm range
+BAND = (1, 10)               # Hz — typical seizure rhythm range
 SEIZURE_CONFIRM_SEC = 10    # seconds of sustained rhythmic motion before alert
  
 # shared state files (read by dashboard.py)
@@ -94,7 +94,7 @@ while True:
         ratio       = band_power / total_power
         amplitude   = np.std(signal)
  
-        rhythmic = ratio > 0.4
+        rhythmic = ratio > 0.2
         strong   = amplitude > baseline_std * 5
         print(f" debug: ratio={ratio:.2f} amp={amplitude:.2f} (need ratio>0.4, amp>{baseline_std*5:.2f})")
         if rhythmic and strong:
